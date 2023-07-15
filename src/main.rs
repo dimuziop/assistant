@@ -120,10 +120,7 @@ async fn get_all_tasks(_auth: BasicAuth, db: DbConn) -> Value {
 async fn get_task(id: String, _auth: BasicAuth, db: DbConn) -> Result<Value, Status> {
     db.run(|c| {
         let db_result: Result<Task, _> = tasks::table.find(id).get_result(c);
-        match db_result {
-            Err(_) => { Err(Status::NotFound) }
-            Ok(task) => { Ok(json!(task)) }
-        }
+        build_response_from_db_result(db_result)
     }).await
 }
 
@@ -154,11 +151,18 @@ async fn update_task(id: String, _auth: BasicAuth, db: DbConn, new_task: Json<Ne
             ))
             .get_result(c);
 
-        match tasks_responses {
-            Err(_) => { Err(Status::NotFound) }
-            Ok(task) => { Ok(json!(task)) }
-        }
+        build_response_from_db_result(tasks_responses)
     }).await
+}
+
+pub fn build_response_from_db_result(tasks_responses: Result<Task, Error>) -> Result<Value, Status> {
+    match tasks_responses {
+        Err(error) => {
+            println!("Logging error: {:#?}", error);
+            Err(Status::NotFound)
+        }
+        Ok(task) => { Ok(json!(task)) }
+    }
 }
 
 #[delete("/tasks/<id>")]
