@@ -1,16 +1,23 @@
 #[macro_use]
 extern crate rocket;
 
+mod schema;
+
+use diesel::{ExpressionMethods, Identifiable, Insertable, Queryable, QueryDsl, RunQueryDsl, Selectable};
 use crate::authorisation::basic_auth::BasicAuth;
 use rocket::request::{FromRequest, Outcome};
-use rocket::response::status;
-use rocket::serde::json::{json, Value};
+use rocket::serde::json::{json, Json, Value};
 use rocket::serde::ser::SerializeStruct;
 use rocket::serde::Serializer;
 use rocket::{Request, State};
 use rocket::http::Status;
+use rocket_sync_db_pools::database;
 use serde::{Deserialize, Serialize};
-use uuid::{Timestamp, Uuid};
+use uuid::{Uuid};
+use schema::{users, tasks};
+use chrono::NaiveDateTime;
+use diesel::prelude::*;
+use diesel::result::Error;
 
 pub mod authorisation;
 
@@ -39,22 +46,35 @@ impl TimeUnits {
     }
 }
 
+#[database("postgres")]
+struct DbConn(diesel::PgConnection);
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct TimeAmount {
     value: i32,
     unit: TimeUnits,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Task {
-    id: String,
-    title: String,
-    description: Option<String>,
-    estimated_time: Option<TimeAmount>,
+#[derive(Debug, Serialize, Queryable, Identifiable, Insertable, Selectable)]
+pub struct Task {
+    pub id: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub estimated_time: Option<String>,
+    //estimated_time: Option<TimeAmount>,
     /*#[serde(with = "time::serde::rfc3339")]
     initial_times: Vec<Timestamp>,
     #[serde(with = "time::serde::rfc3339")]
     end_times: Vec<Timestamp>,*/
+    pub created_at: NaiveDateTime,
+    pub updated_at: Option<NaiveDateTime>,
+    pub deleted_at: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct NewTaskDTO {
+    pub title: String,
+    pub description: Option<String>,
 }
 
 impl Default for Task {
@@ -66,6 +86,9 @@ impl Default for Task {
             estimated_time: None,
             /*initial_times: Vec::default(),
             end_times: Vec::default(),*/
+            created_at: NaiveDateTime::default(),
+            updated_at: None,
+            deleted_at: None,
         }
     }
 }
@@ -78,9 +101,7 @@ impl<'r> FromRequest<'r> for BasicAuth {
         let auth_header = request.headers().get_one("Authorization");
         if let Some(auth_header) = auth_header {
             if let Some(auth) = Self::from_authorisation_header(auth_header) {
-                if auth.username == "foo".to_string() && auth.password == "bar".to_string() {
-                    return Outcome::Success(auth);
-                }
+                return Outcome::Success(auth);
             }
         }
         Outcome::Failure((Status::Unauthorized, ()))
@@ -88,28 +109,68 @@ impl<'r> FromRequest<'r> for BasicAuth {
 }
 
 #[get("/tasks")]
-fn get_all_tasks(task_db: &State<Vec<Task>>, _auth: BasicAuth) -> Value {
-    json!(task_db.to_vec())
+async fn get_all_tasks(_auth: BasicAuth, db: DbConn) -> Value {
+    db.run(|c| {
+        let tasks_response = tasks::table.order(tasks::created_at.desc()).limit(1000).load::<Task>(c).expect("DB error"); // tempoaral panic
+        json!(tasks_response)
+    }).await
 }
 
 #[get("/tasks/<id>")]
-fn get_task(id: String) -> Value {
-    json!({ "id": id })
+async fn get_task(id: String, _auth: BasicAuth, db: DbConn) -> Result<Value, Status> {
+    db.run(|c| {
+        let db_result: Result<Task, _> = tasks::table.find(id).get_result(c);
+        match db_result {
+            Err(_) => { Err(Status::NotFound) }
+            Ok(task) => { Ok(json!(task)) }
+        }
+    }).await
 }
 
-#[post("/tasks", format = "json")]
-fn create_task() -> Value {
-    json!("Hello, world ")
+#[post("/tasks", format = "json", data = "<new_task>")]
+async fn create_task(_auth: BasicAuth, db: DbConn, new_task: Json<NewTaskDTO>) -> Value {
+    let new_task_instance: NewTaskDTO = new_task.into_inner();
+    db.run(|c| {
+        let result: Task = diesel::insert_into(tasks::table)
+            .values(Task {
+                title: new_task_instance.title,
+                description: new_task_instance.description,
+                ..Task::default()
+            })
+            .get_result(c)
+            .expect("DB Error");
+        json!(result)
+    }).await
 }
 
-#[put("/tasks/<id>", format = "json")]
-fn update_task(id: String) -> Value {
-    json!({ "id": id })
+#[put("/tasks/<id>", format = "json", data = "<new_task>")]
+async fn update_task(id: String, _auth: BasicAuth, db: DbConn, new_task: Json<NewTaskDTO>) -> Result<Value, Status> {
+    let new_task_instance: NewTaskDTO = new_task.into_inner();
+    db.run(|c| {
+        let tasks_responses: Result<Task, _> = diesel::update(tasks::table.filter(tasks::id.eq(id)))
+            .set((
+                tasks::title.eq(new_task_instance.title),
+                tasks::description.eq(new_task_instance.description),
+            ))
+            .get_result(c);
+
+        match tasks_responses {
+            Err(_) => { Err(Status::NotFound) }
+            Ok(task) => { Ok(json!(task)) }
+        }
+    }).await
 }
 
 #[delete("/tasks/<id>")]
-fn delete_task(id: String) -> status::NoContent {
-    status::NoContent
+async fn delete_task(id: String, _auth: BasicAuth, db: DbConn) -> Status {
+    let deleted = db.run(|c| {
+        let result = diesel::delete(tasks::table.filter(tasks::id.eq(id))).execute(c).expect("Error deleting task");
+        result
+    }).await;
+    if deleted == 0 {
+        return Status::NotFound;
+    }
+    Status::NoContent
 }
 
 #[catch(404)]
@@ -122,13 +183,17 @@ fn unauthorized() -> Value {
     json!({"Error": "Unauthorized"})
 }
 
+#[catch(422)]
+fn unprocessable_entity() -> Value {
+    json!({
+        "Error": "Unauthorized",
+        "Code": 422
+    })
+}
+
 #[rocket::main]
 async fn main() {
-    let n: Option<BasicAuth> = None;
-    let mut tasks_db: Vec<Task> = Vec::new();
-    tasks_db.push(Task::default());
     let _ = rocket::build()
-        .manage(tasks_db)
         .mount(
             "/",
             routes![
@@ -139,7 +204,8 @@ async fn main() {
                 delete_task,
             ],
         )
-        .register("/", catchers![not_found,unauthorized])
+        .attach(DbConn::fairing())
+        .register("/", catchers![not_found,unauthorized, unprocessable_entity])
         .launch()
         .await;
 }

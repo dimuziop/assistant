@@ -1,0 +1,2 @@
+[global.databases]
+postgres = {url = "postgres://postgres:pass123@localhost/assistant"}

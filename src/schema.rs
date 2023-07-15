@@ -1,6 +1,18 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    tasks (id) {
+        id -> Varchar,
+        title -> Varchar,
+        description -> Nullable<Varchar>,
+        estimated_time -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        updated_at -> Nullable<Timestamp>,
+        deleted_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Varchar,
         email -> Varchar,
@@ -11,3 +23,8 @@ diesel::table! {
         deleted_at -> Nullable<Timestamp>,
     }
 }
+
+diesel::allow_tables_to_appear_in_same_query!(
+    tasks,
+    users,
+);
