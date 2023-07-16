@@ -10,15 +10,18 @@ use rocket::request::{FromRequest, Outcome};
 use rocket::serde::json::{json, Json, Value};
 use rocket::serde::ser::SerializeStruct;
 use rocket::serde::Serializer;
-use rocket::Request;
+use rocket::{Build, Request, Rocket};
 use rocket::http::Status;
 use rocket_sync_db_pools::database;
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 use diesel::result::Error;
+use diesel_migrations::EmbeddedMigrations;
 use crate::tasks::tasks_repository::TasksRepository;
 use crate::tasks::task::Task;
 use log::{info, warn, error};
+use rocket::fairing::AdHoc;
+use rocket::futures::TryFutureExt;
 
 pub mod authorisation;
 
@@ -126,16 +129,25 @@ async fn update_task(id: String, _auth: BasicAuth, db: DbConn, new_task: Json<Ne
 }
 
 #[delete("/tasks/<id>")]
-async fn delete_task(id: String, _auth: BasicAuth, db: DbConn) -> Status {
+async fn delete_task(id: String, _auth: BasicAuth, db: DbConn) -> Result<Value, Status> {
     let deleted = db.run(|c| {
         let result = TasksRepository::soft_delete(c, id);
         result
     }).await;
-    if deleted.is_err() {
-        warn!("Logging error: {:#?}", deleted.unwrap_err());
-        return Status::NotFound;
-    }
-    Status::NoContent
+
+    deleted
+        .map(|task| json!(task))
+        .map_err(|err| {
+            match err {
+                Error::NotFound => {
+                    warn!("Logging error: {:#?}", err);
+                    Status::NotFound
+                }
+                _ => {
+                    Status::InternalServerError
+                }
+            }
+        })
 }
 
 pub fn build_response_from_db_result<T: Serialize>(tasks_responses: Result<T, Error>) -> Result<Value, Status> {
@@ -151,7 +163,7 @@ pub fn build_response_from_db_result<T: Serialize>(tasks_responses: Result<T, Er
                     Err(Status::InternalServerError)
                 }
                 Error::NotFound => {
-                    info!("Logging error: {:#?}", error);
+                    warn!("Logging error: {:#?}", error);
                     Err(Status::NotFound)
                 }
                 Error::QueryBuilderError(_) => {
@@ -190,7 +202,7 @@ pub fn build_response_from_db_result<T: Serialize>(tasks_responses: Result<T, Er
                     error!("Uncached error: {:#?}", error);
                     Err(Status::InternalServerError)
                 }
-            }
+            };
         }
         Ok(task) => { Ok(json!(task)) }
     }
@@ -214,6 +226,19 @@ fn unprocessable_entity() -> Value {
     })
 }
 
+async fn run_db_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
+    use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+    const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+
+    DbConn::get_one(&rocket).await
+        .expect("Unable to retrieve connections")
+        .run(|c| {
+            c.run_pending_migrations(MIGRATIONS).expect("Migrations FAILED");
+        }).await;
+
+    rocket
+}
+
 #[rocket::main]
 async fn main() {
     let _ = rocket::build()
@@ -228,6 +253,7 @@ async fn main() {
             ],
         )
         .attach(DbConn::fairing())
+        .attach(AdHoc::on_ignite("Diesel migrations", run_db_migrations))
         .register("/", catchers![not_found,unauthorized, unprocessable_entity])
         .launch()
         .await;
