@@ -1,9 +1,10 @@
 -- Your SQL goes here
-CREATE TABLE users
+CREATE TABLE credentials
 (
     id         VARCHAR PRIMARY KEY,
-    name       VARCHAR   NOT NULL,
-    last_name  VARCHAR   NOT NULL,
+    user_id    VARCHAR NOT NULL REFERENCES users(id),
+    email      VARCHAR NOT NULL,
+    password   VARCHAR(128) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL,
     deleted_at TIMESTAMP NULL

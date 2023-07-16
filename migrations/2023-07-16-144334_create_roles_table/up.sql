@@ -1,9 +1,10 @@
 -- Your SQL goes here
-CREATE TABLE users
+CREATE TABLE roles
 (
     id         VARCHAR PRIMARY KEY,
-    name       VARCHAR   NOT NULL,
-    last_name  VARCHAR   NOT NULL,
+    name   VARCHAR(128) NOT NULL,
+    code   VARCHAR(128) NOT NULL,
+    description   VARCHAR NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL,
     deleted_at TIMESTAMP NULL

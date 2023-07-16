@@ -1,9 +1,9 @@
 -- Your SQL goes here
-CREATE TABLE users
+CREATE TABLE users_roles
 (
     id         VARCHAR PRIMARY KEY,
-    name       VARCHAR   NOT NULL,
-    last_name  VARCHAR   NOT NULL,
+    user_ud  VARCHAR   NOT NULL REFERENCES users(id),
+    role_is  VARCHAR   NOT NULL REFERENCES roles(id),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL,
     deleted_at TIMESTAMP NULL
