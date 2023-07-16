@@ -17,40 +17,8 @@ use rocket::fairing::AdHoc;
 
 pub mod authorisation;
 
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-enum TimeUnits {
-    Millisecond,
-    Second,
-    Minute,
-    Hour,
-    Day,
-    Month,
-    Year,
-}
-
-impl TimeUnits {
-    fn value(&self) -> i64 {
-        match *self {
-            TimeUnits::Millisecond => 1,
-            TimeUnits::Second => 1000,
-            TimeUnits::Minute => 60000,
-            TimeUnits::Hour => 360000,
-            TimeUnits::Day => 8640000,
-            TimeUnits::Month => 2628000000,
-            TimeUnits::Year => 31536000000,
-        }
-    }
-}
-
 #[database("postgres")]
 struct DbConn(diesel::PgConnection);
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct TimeAmount {
-    value: i32,
-    unit: TimeUnits,
-}
 
 
 #[derive(Debug, Serialize, Deserialize)]

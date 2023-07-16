@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use rocket::serde::Deserialize;
 use serde::{Serialize};
 use uuid::Uuid;
 use crate::schema::tasks;
@@ -34,4 +35,35 @@ impl Default for Task {
             deleted_at: None,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum TimeUnits {
+    Millisecond,
+    Second,
+    Minute,
+    Hour,
+    Day,
+    Month,
+    Year,
+}
+
+impl TimeUnits {
+    fn value(&self) -> i64 {
+        match *self {
+            TimeUnits::Millisecond => 1,
+            TimeUnits::Second => 1000,
+            TimeUnits::Minute => 60000,
+            TimeUnits::Hour => 360000,
+            TimeUnits::Day => 8640000,
+            TimeUnits::Month => 2628000000,
+            TimeUnits::Year => 31536000000,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TimeAmount {
+    value: i32,
+    unit: TimeUnits,
 }
