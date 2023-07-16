@@ -7,7 +7,7 @@ pub struct TasksRepository;
 
 impl TasksRepository {
     pub fn find(c: &mut PgConnection, id: String) -> QueryResult<Task> {
-        tasks::table.find(id).get_result::<Task>(c)
+        tasks::table.find(id).filter(tasks::deleted_at.is_null()).get_result::<Task>(c)
     }
 
     pub fn all(c: &mut PgConnection, limit: i64) -> QueryResult<Vec<Task>> {

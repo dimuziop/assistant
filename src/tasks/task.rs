@@ -4,7 +4,7 @@ use serde::{Serialize};
 use uuid::Uuid;
 use crate::schema::tasks;
 
-#[derive(Debug, Serialize, Queryable, Identifiable, Insertable, Selectable)]
+#[derive(Debug, Serialize, Queryable, Identifiable, Insertable, Selectable, Clone)]
 pub struct Task {
     pub id: String,
     pub title: String,
