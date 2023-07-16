@@ -2,8 +2,7 @@ use diesel::{PgConnection, QueryResult, RunQueryDsl};
 use uuid::Uuid;
 use crate::schema::users;
 use crate::users::user::{NewUserDTO, User};
-use chrono::{Local, NaiveDateTime};
-use diesel::dsl;
+use chrono::{Local};
 use diesel::prelude::*;
 
 pub struct IdentityRepository<'a> {
