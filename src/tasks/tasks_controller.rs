@@ -1,6 +1,5 @@
-use rocket::Route;
+use rocket::{delete, get, post, put, Route, routes};
 use crate::authorisation::basic_auth::BasicAuth;
-use crate::{DbConn, NewTaskDTO};
 use crate::framework::router_helpers::{build_created_json_response, build_ok_json_response};
 use crate::tasks::tasks_repository::TasksRepository;
 use rocket::http::Status;
@@ -8,7 +7,8 @@ use serde_json::Value;
 use diesel::result::Error;
 use rocket::response::status::Created;
 use rocket::serde::json::{Json, json};
-use crate::tasks::task::Task;
+use crate::DbConn;
+use crate::tasks::task::{Task, NewTaskDTO};
 
 #[get("/")]
 async fn get_all_tasks(_auth: BasicAuth, db: DbConn) -> Result<Value, Status> {
@@ -66,7 +66,7 @@ async fn delete_task(id: String, _auth: BasicAuth, db: DbConn) -> Result<Value, 
         .map_err(|err| {
             match err {
                 Error::NotFound => {
-                    warn!("Logging error: {:#?}", err);
+                    log::warn!("Logging error: {:#?}", err);
                     Status::NotFound
                 }
                 _ => {

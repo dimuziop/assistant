@@ -67,3 +67,9 @@ pub struct TimeAmount {
     value: i32,
     unit: TimeUnits,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct NewTaskDTO {
+    pub title: String,
+    pub description: Option<String>,
+}
