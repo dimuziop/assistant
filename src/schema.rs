@@ -53,8 +53,8 @@ diesel::table! {
 diesel::table! {
     users_roles (id) {
         id -> Varchar,
-        user_ud -> Varchar,
-        role_is -> Varchar,
+        user_id -> Varchar,
+        role_id -> Varchar,
         created_at -> Timestamp,
         updated_at -> Nullable<Timestamp>,
         deleted_at -> Nullable<Timestamp>,
@@ -62,8 +62,8 @@ diesel::table! {
 }
 
 diesel::joinable!(credentials -> users (user_id));
-diesel::joinable!(users_roles -> roles (role_is));
-diesel::joinable!(users_roles -> users (user_ud));
+diesel::joinable!(users_roles -> roles (role_id));
+diesel::joinable!(users_roles -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     credentials,

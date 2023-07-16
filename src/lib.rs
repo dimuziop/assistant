@@ -1,14 +1,14 @@
+pub mod schema;
+pub mod tasks;
+pub mod framework;
+pub mod authorisation;
+pub mod users;
+
 use rocket::http::Status;
 use rocket::Request;
 use rocket::request::{FromRequest, Outcome};
 use rocket_sync_db_pools::database;
 use crate::authorisation::basic_auth::BasicAuth;
-
-pub mod schema;
-pub mod tasks;
-pub mod framework;
-pub mod authorisation;
-
 
 #[database("postgres")]
 pub struct DbConn(diesel::PgConnection);

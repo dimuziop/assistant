@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
-use rocket::serde::{Deserialize, Serialize};
+use diesel::prelude::*;
+use rocket::serde::{Serialize, Deserialize};
+use crate::schema::{users};
 
 #[derive(Debug, Serialize, Queryable, Identifiable, Insertable, Selectable, Clone)]
 pub struct User {
@@ -13,9 +14,10 @@ pub struct User {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NewUser {
+pub struct NewUserDTO {
     pub name: String,
     pub last_name: String,
     pub email: String,
     pub password: String,
+    pub roles: Vec<String>,
 }
