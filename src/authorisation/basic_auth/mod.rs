@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use regex::Regex;
-use base64::{Engine as _, engine::{self, general_purpose}, alphabet};
+use base64::{Engine as _, engine::{general_purpose}};
+use log::{error};
 
 #[derive(PartialEq, Debug)]
 pub struct BasicAuth {
@@ -27,6 +28,7 @@ impl BasicAuth {
 
     fn decode_base64_auth_header(auth: &str) -> Option<(String, String)> {
         if let Err(error) = general_purpose::STANDARD.decode(auth.trim()) {
+            error!("Error decoding base auth: {}", error);
             return None;
         }
         let decoded = general_purpose::STANDARD.decode(auth.trim()).ok().unwrap();

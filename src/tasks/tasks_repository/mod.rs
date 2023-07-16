@@ -40,9 +40,7 @@ impl TasksRepository {
         diesel::update(tasks::table
             .filter(tasks::id.eq(id)))
             .filter(tasks::deleted_at.is_null())
-            .set((
-                tasks::deleted_at.eq(dsl::now)
-            ))
+            .set(tasks::deleted_at.eq(dsl::now))
             .get_result(c)
     }
 

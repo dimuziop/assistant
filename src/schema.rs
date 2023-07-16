@@ -4,7 +4,7 @@ diesel::table! {
     tasks (id) {
         id -> Varchar,
         title -> Varchar,
-        description -> Nullable<Varchar>,
+        description -> Nullable<Text>,
         estimated_time -> Nullable<Varchar>,
         created_at -> Timestamp,
         updated_at -> Nullable<Timestamp>,
