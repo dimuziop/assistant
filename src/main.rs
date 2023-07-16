@@ -18,6 +18,7 @@ use diesel::prelude::*;
 use diesel::result::Error;
 use crate::tasks::tasks_repository::TasksRepository;
 use crate::tasks::task::Task;
+use log::{info, warn, error};
 
 pub mod authorisation;
 
@@ -72,18 +73,20 @@ impl<'r> FromRequest<'r> for BasicAuth {
         let auth_header = request.headers().get_one("Authorization");
         if let Some(auth_header) = auth_header {
             if let Some(auth) = Self::from_authorisation_header(auth_header) {
+                info!("Successful Auth user: {}", auth.username);
                 return Outcome::Success(auth);
             }
         }
+        info!("Unauthorized Request");
         Outcome::Failure((Status::Unauthorized, ()))
     }
 }
 
 #[get("/tasks")]
-async fn get_all_tasks(_auth: BasicAuth, db: DbConn) -> Value {
+async fn get_all_tasks(_auth: BasicAuth, db: DbConn) -> Result<Value, Status> {
     db.run(|c| {
-        let tasks_response = TasksRepository::all(c, 1000).expect("DB error"); // tempoaral panic
-        json!(tasks_response)
+        let db_result = TasksRepository::all(c, 1000);
+        build_response_from_db_result(db_result)
     }).await
 }
 
@@ -129,17 +132,65 @@ async fn delete_task(id: String, _auth: BasicAuth, db: DbConn) -> Status {
         result
     }).await;
     if deleted.is_err() {
-        println!("Logging error: {:#?}", deleted.unwrap_err());
+        warn!("Logging error: {:#?}", deleted.unwrap_err());
         return Status::NotFound;
     }
     Status::NoContent
 }
 
-pub fn build_response_from_db_result(tasks_responses: Result<Task, Error>) -> Result<Value, Status> {
+pub fn build_response_from_db_result<T: Serialize>(tasks_responses: Result<T, Error>) -> Result<Value, Status> {
     match tasks_responses {
         Err(error) => {
-            println!("Logging error: {:#?}", error);
-            Err(Status::NotFound)
+            return match error {
+                Error::InvalidCString(_) => {
+                    error!("InvalidCString: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::DatabaseError(_, _) => {
+                    error!("DatabaseError: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::NotFound => {
+                    info!("Logging error: {:#?}", error);
+                    Err(Status::NotFound)
+                }
+                Error::QueryBuilderError(_) => {
+                    error!("QueryBuilderError: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::DeserializationError(_) => {
+                    error!("DeserializationError: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::SerializationError(_) => {
+                    error!("SerializationError: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::RollbackErrorOnCommit { .. } => {
+                    error!("RollbackErrorOnCommit: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::RollbackTransaction => {
+                    error!("RollbackTransaction: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::AlreadyInTransaction => {
+                    error!("AlreadyInTransaction: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::NotInTransaction => {
+                    error!("NotInTransaction: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                Error::BrokenTransactionManager => {
+                    error!("BrokenTransactionManager: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+                _ => {
+                    error!("Uncached error: {:#?}", error);
+                    Err(Status::InternalServerError)
+                }
+            }
         }
         Ok(task) => { Ok(json!(task)) }
     }

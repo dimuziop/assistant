@@ -1308,6 +1308,7 @@ dependencies = [
  "base64",
  "chrono",
  "diesel",
+ "log",
  "regex",
  "rocket",
  "rocket_sync_db_pools",
