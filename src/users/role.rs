@@ -27,8 +27,10 @@ pub struct UserRole {
     pub deleted_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Insertable, Clone)]
+#[diesel(table_name = users_roles)]
 pub struct NewUserRole {
+    pub id: String,
     pub user_id: String,
     pub role_id: String,
 }
