@@ -45,8 +45,9 @@ fn main() {
                 sub_matchers.get_one::<String>("last_name").unwrap().to_owned(),
                 sub_matchers.get_many::<String>("roles").unwrap().map(|v| v.to_string()).collect(),
             ),
-            Some(("list", sub_matchers)) => list_users(
-                sub_matchers.get_one::<u32>("limit").unwrap().to_owned().to_owned(),
+            Some(("list", sub_matchers)) =>
+                list_users(
+                sub_matchers.get_one::<String>("limit").unwrap().to_owned().parse::<i64>().unwrap(),
                 sub_matchers.get_one::<String>("search").to_owned(),
             ),
             Some(("delete", sub_matchers)) => delete_users(

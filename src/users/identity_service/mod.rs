@@ -8,7 +8,8 @@ use crate::users::user::{NewUserDTO, User};
 
 pub enum LocalErrors {
     BadRequest(String),
-    CreationFailed(String)
+    CreationFailed(String),
+    InternalError(String)
 }
 
 pub struct IdentityService<'a> {
@@ -62,17 +63,11 @@ impl ManagesUsers for IdentityService<'_> {
             deleted_at: None,
         };
 
-
-
         let repo_create = self.user_repository.create(
             user,
             new_user_roles,
             credentials,
         );
-        //let err = self.role_service.attach_roles(new_user_roles).err();
-
-
-
 
         match repo_create {
             Ok(created_user) => Ok(created_user.clone()),
@@ -83,8 +78,15 @@ impl ManagesUsers for IdentityService<'_> {
         }
     }
 
-    fn list_user(&self) {
-        todo!()
+    fn get_users(&self, search_pattern: Option<&String>, limit: i64) -> Result<Vec<User>, LocalErrors> {
+        match search_pattern {
+            None => self.user_repository.getAll(limit)
+                .map(|read_users| read_users)
+                .map_err(|e| LocalErrors::InternalError(format!("Get users, get all error: {:?}", e))),
+            Some(pattern) => self.user_repository.find_all_by_name(pattern, limit)
+                .map(|read_users| read_users)
+                .map_err(|e| LocalErrors::InternalError(format!("Get users, get all error: {:?}", e)))
+        }
     }
 
     fn delete_user(&self, id: String) {
@@ -95,6 +97,6 @@ impl ManagesUsers for IdentityService<'_> {
 
 pub trait ManagesUsers {
     fn create_user(&mut self, new_user_dto: NewUserDTO) -> Result<User, LocalErrors>;
-    fn list_user(&self);
+    fn get_users(&self, search_pattern: Option<&String>, limit: i64) -> Result<Vec<User>, LocalErrors>;
     fn delete_user(&self, id: String);
 }

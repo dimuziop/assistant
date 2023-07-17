@@ -35,6 +35,31 @@ impl UserRepository {
             }
         }
     }
+
+    pub fn find_all_by_name(&self, pattern: &String, limit: i64) -> QueryResult<Vec<User>> {
+        match self.conn.get() {
+            Ok(mut pool) => {
+                users::table
+                    .filter(users::name.ilike(pattern))
+                    .or_filter(users::last_name.ilike(pattern))
+                    .limit(limit).load::<User>(&mut pool)
+            }
+            Err(_) => {
+                panic!("HAndle this");
+            }
+        }
+    }
+
+    pub fn getAll(&self, limit: i64) -> QueryResult<Vec<User>> {
+        match self.conn.get() {
+            Ok(mut pool) => {
+                users::table.limit(limit).load::<User>(&mut pool)
+            }
+            Err(_) => {
+                panic!("HAndle this");
+            }
+        }
+    }
 }
 
 pub struct RoleRepository {

@@ -37,6 +37,16 @@ pub fn create_users(email: String, password: String, name: String, last_name: St
     println!("User")
 }
 
-pub fn list_users(_limit: u32, _search_pattern: Option<&String>) {}
+pub fn list_users(limit: i64, search_pattern: Option<&String>) {
+    let pool = create_pool();
+    let mut user_repository = UserRepository::new(pool.clone());
+    let mut role_repository = RoleRepository::new(pool.clone());
+    let mut role_service = RoleService::new(&mut role_repository);
+    let mut identity_service = IdentityService::new(&mut user_repository, &mut role_service);
+
+    let users = identity_service.get_users(search_pattern, limit);
+
+
+}
 
 pub fn delete_users(_id: String) {}
