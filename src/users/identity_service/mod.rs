@@ -1,5 +1,6 @@
 use chrono::Local;
 use uuid::Uuid;
+use crate::users::credentials::Credentials;
 use crate::users::repositories::{UserRepository};
 use crate::users::role::NewUserRole;
 use crate::users::role_service::RoleService;
@@ -50,12 +51,25 @@ impl ManagesUsers for IdentityService<'_> {
                 user_id: user.id.clone(),
             }
         }).collect();
-        let repo_create = self.user_repository.create(user);
-        let err = self.role_service.attach_roles(new_user_roles).err();
 
-        if Some(err).is_some() {
-            // rollback the operation
-        }
+        let credentials = Credentials {
+            id: Uuid::new_v4().to_string(),
+            user_id: user.id.clone(),
+            email: new_user_dto.email,
+            password: new_user_dto.password,
+            created_at: Local::now().naive_local(),
+            updated_at: None,
+            deleted_at: None,
+        };
+
+
+
+        let repo_create = self.user_repository.create(
+            user,
+            new_user_roles,
+            credentials,
+        );
+        //let err = self.role_service.attach_roles(new_user_roles).err();
 
 
 

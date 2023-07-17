@@ -3,8 +3,10 @@ use crate::schema::users;
 use crate::users::user::{User};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
+use crate::schema::credentials::dsl::credentials;
 use crate::schema::roles;
 use crate::schema::users_roles::dsl::users_roles;
+use crate::users::credentials::Credentials;
 use crate::users::role::{NewUserRole, Role};
 
 pub struct UserRepository {
@@ -18,10 +20,15 @@ impl UserRepository {
         }
     }
 
-    pub fn create(&self, new_user: User) -> QueryResult<User> {
+    pub fn create(&self, new_user: User, new_user_roles: Vec<NewUserRole>, new_credentials: Credentials) -> QueryResult<User> {
         match self.conn.get() {
-            Ok(mut pool) => {
-                diesel::insert_into(users::table).values(new_user).get_result(&mut pool)
+            Ok(mut connection) => {
+                connection.transaction(|trc| {
+                    let user = diesel::insert_into(users::table).values(new_user).get_result(trc);
+                    let _ = diesel::insert_into(users_roles).values(new_user_roles).execute(trc);
+                    let _ = diesel::insert_into(credentials).values(new_credentials).execute(trc);
+                    user
+                })
             }
             Err(_) => {
                 panic!("HAndle this");
