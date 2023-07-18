@@ -1,4 +1,8 @@
+use argon2::password_hash::rand_core::OsRng;
+use argon2::password_hash::SaltString;
+use argon2::PasswordHasher;
 use chrono::Local;
+use diesel::QueryResult;
 use uuid::Uuid;
 use crate::users::credentials::Credentials;
 use crate::users::repositories::{UserRepository};
@@ -53,11 +57,14 @@ impl ManagesUsers for IdentityService<'_> {
             }
         }).collect();
 
+        let argon2 = argon2::Argon2::default();
+        let salt = SaltString::generate(OsRng);
+
         let credentials = Credentials {
             id: Uuid::new_v4().to_string(),
             user_id: user.id.clone(),
             email: new_user_dto.email,
-            password: new_user_dto.password,
+            password: argon2.hash_password(new_user_dto.password.as_bytes(), &salt.clone()).unwrap().to_string(),
             created_at: Local::now().naive_local(),
             updated_at: None,
             deleted_at: None,
@@ -80,7 +87,7 @@ impl ManagesUsers for IdentityService<'_> {
 
     fn get_users(&self, search_pattern: Option<&String>, limit: i64) -> Result<Vec<User>, LocalErrors> {
         match search_pattern {
-            None => self.user_repository.getAll(limit)
+            None => self.user_repository.get_all(limit)
                 .map(|read_users| read_users)
                 .map_err(|e| LocalErrors::InternalError(format!("Get users, get all error: {:?}", e))),
             Some(pattern) => self.user_repository.find_all_by_name(pattern, limit)
@@ -89,8 +96,11 @@ impl ManagesUsers for IdentityService<'_> {
         }
     }
 
-    fn delete_user(&self, id: String) {
-        todo!()
+    fn delete(&self, id: String) {
+        match self.user_repository.soft_delete(id) {
+            Ok(_) => {println!("OK")}
+            Err(_) => {println!("FAILED")}
+        }
     }
 }
 
@@ -98,5 +108,5 @@ impl ManagesUsers for IdentityService<'_> {
 pub trait ManagesUsers {
     fn create_user(&mut self, new_user_dto: NewUserDTO) -> Result<User, LocalErrors>;
     fn get_users(&self, search_pattern: Option<&String>, limit: i64) -> Result<Vec<User>, LocalErrors>;
-    fn delete_user(&self, id: String);
+    fn delete(&self, id: String);
 }

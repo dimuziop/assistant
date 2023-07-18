@@ -3,11 +3,12 @@ use crate::schema::users;
 use crate::users::user::{User};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
-use crate::schema::credentials::dsl::credentials;
+use crate::schema::credentials;
 use crate::schema::roles;
-use crate::schema::users_roles::dsl::users_roles;
+use crate::schema::users_roles;
 use crate::users::credentials::Credentials;
 use crate::users::role::{NewUserRole, Role};
+use chrono::Local;
 
 pub struct UserRepository {
     conn: Pool<ConnectionManager<PgConnection>>,
@@ -25,8 +26,8 @@ impl UserRepository {
             Ok(mut connection) => {
                 connection.transaction(|trc| {
                     let user = diesel::insert_into(users::table).values(new_user).get_result(trc);
-                    let _ = diesel::insert_into(users_roles).values(new_user_roles).execute(trc);
-                    let _ = diesel::insert_into(credentials).values(new_credentials).execute(trc);
+                    let _ = diesel::insert_into(users_roles::table).values(new_user_roles).execute(trc);
+                    let _ = diesel::insert_into(credentials::table).values(new_credentials).execute(trc);
                     user
                 })
             }
@@ -42,6 +43,7 @@ impl UserRepository {
                 users::table
                     .filter(users::name.ilike(pattern))
                     .or_filter(users::last_name.ilike(pattern))
+                    .filter(users::deleted_at.is_null())
                     .limit(limit).load::<User>(&mut pool)
             }
             Err(_) => {
@@ -50,10 +52,30 @@ impl UserRepository {
         }
     }
 
-    pub fn getAll(&self, limit: i64) -> QueryResult<Vec<User>> {
+    pub fn get_all(&self, limit: i64) -> QueryResult<Vec<User>> {
         match self.conn.get() {
             Ok(mut pool) => {
-                users::table.limit(limit).load::<User>(&mut pool)
+                users::table.filter(users::deleted_at.is_null()).limit(limit).load::<User>(&mut pool)
+            }
+            Err(_) => {
+                panic!("HAndle this");
+            }
+        }
+    }
+
+    pub fn soft_delete(&self, id: String) -> QueryResult<usize> {
+        match self.conn.get() {
+            Ok(mut connection) => {
+                connection.transaction(|trc| {
+                    let deletion_time = Local::now().naive_local();
+                    let user = diesel::update(users::table)
+                        .filter(users::id.eq(id.clone()))
+                        .set(users::deleted_at.eq(deletion_time.clone()))
+                        .execute(trc);
+                    let _ = diesel::update(users_roles::table).filter(users_roles::user_id.eq(id.clone())).set(users_roles::deleted_at.eq(deletion_time.clone())).execute(trc);;
+                    let _ = diesel::update(credentials::table).filter(credentials::user_id.eq(id)).set(credentials::deleted_at.eq(deletion_time.clone())).execute(trc);;
+                    user
+                })
             }
             Err(_) => {
                 panic!("HAndle this");
@@ -87,7 +109,7 @@ impl RoleRepository {
     pub fn attach_users(&self, new_user_roles: Vec<NewUserRole>) -> QueryResult<usize> {
         match self.conn.get() {
             Ok(mut pool) => {
-                diesel::insert_into(users_roles).values(new_user_roles).execute(&mut pool)
+                diesel::insert_into(users_roles::table).values(new_user_roles).execute(&mut pool)
             }
             Err(_) => {
                 panic!("HAndle this");

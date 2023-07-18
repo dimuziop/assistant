@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use rocket::serde::{Serialize};
 use crate::schema::{users_roles, roles};
+use crate::users::user::User;
 
 #[derive(Debug, Serialize, Queryable, Identifiable, Insertable, Selectable, Clone)]
 pub struct Role {
@@ -14,7 +15,7 @@ pub struct Role {
     pub deleted_at: Option<NaiveDateTime>,
 }
 
-#[derive(Debug, Serialize, Queryable, Identifiable, Insertable, Selectable, Clone)]
+#[derive(Debug, Serialize, Queryable, Identifiable, Insertable, Selectable, Associations, Clone)]
 #[diesel(belongs_to(User))]
 #[diesel(belongs_to(Role))]
 #[diesel(table_name = users_roles)]
