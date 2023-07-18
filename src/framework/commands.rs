@@ -84,3 +84,12 @@ pub fn delete_users(id: String) {
 
     let users = identity_service.delete(id);
 }
+
+pub fn get_roles_options() -> Vec<String> {
+    let pool = create_pool();
+    let mut role_repository = RoleRepository::new(pool.clone());
+
+    let Ok(roles) = role_repository.get_all() else { todo!() };
+
+    roles.iter().map(|rol| rol.code.clone()).collect()
+}

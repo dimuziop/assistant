@@ -95,6 +95,17 @@ impl RoleRepository {
         }
     }
 
+    pub fn get_all(&self) -> QueryResult<Vec<Role>> {
+        match self.conn.get() {
+            Ok(mut pool) => {
+                roles::table.load::<Role>(&mut pool)
+            }
+            Err(_) => {
+                panic!("HAndle this");
+            }
+        }
+    }
+
     pub fn get_roles_by_code(&self, codes: Vec<String>) -> QueryResult<Vec<Role>> {
         match self.conn.get() {
             Ok(mut pool) => {
