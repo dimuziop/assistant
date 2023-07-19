@@ -1,5 +1,5 @@
 use rocket::{delete, get, post, put, Route, routes};
-use crate::authorisation::basic_auth::BasicAuth;
+use crate::authorization::basic_auth::BasicAuth;
 use crate::framework::router_helpers::{build_created_json_response, build_ok_json_response};
 use crate::tasks::tasks_repository::TasksRepository;
 use rocket::http::Status;

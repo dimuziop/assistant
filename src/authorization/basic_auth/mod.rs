@@ -44,7 +44,7 @@ impl BasicAuth {
 #[cfg(test)]
 mod tests {
     use std::any::type_name;
-    use crate::authorisation::basic_auth::{*};
+    use crate::authorization::basic_auth::{*};
     use base64::{Engine as _, engine::{self, general_purpose}, alphabet};
 
     const USERNAME: &str = "john@doe.net";

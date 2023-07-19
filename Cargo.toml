@@ -18,6 +18,7 @@ base64 = "0.21.2"
 regex = "1.8.4"
 diesel = { version = "2.1.0", features = ["postgres", "r2d2", "chrono"] }
 rocket_sync_db_pools = { version = "0.1.0-rc.3", features = ["diesel_postgres_pool"] }
+rocket_db_pools = {version = "0.1.0-rc.3", features = ["deadpool_redis"]}
 chrono = { version = "0.4.26", features = ["serde"] }
 log = "0.4.19"
 diesel_migrations = "2.1.0"
@@ -28,3 +29,4 @@ console = "0.15.7"
 prettytable = "0.10.0"
 dialoguer = "0.10.4"
 validators = "0.24.3"
+jsonwebtoken = "8.3.0"

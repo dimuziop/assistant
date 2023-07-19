@@ -1,18 +1,29 @@
 pub mod schema;
 pub mod tasks;
 pub mod framework;
-pub mod authorisation;
+pub mod authorization;
 pub mod users;
 
+use diesel::PgConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use rocket::http::Status;
 use rocket::Request;
 use rocket::request::{FromRequest, Outcome};
+use rocket_db_pools::{Database, deadpool_redis};
 use rocket_sync_db_pools::database;
-use crate::authorisation::basic_auth::BasicAuth;
+use crate::authorization::basic_auth::BasicAuth;
 
 #[database("postgres")]
-pub struct DbConn(diesel::PgConnection);
+pub struct DbConn(PgConnection);
 
+pub type DbPool = Pool<ConnectionManager<PgConnection>>;
+pub struct ServerState {
+    pub db_pool: DbPool
+}
+
+#[derive(Database)]
+#[database("redis")]
+pub struct CacheConn(deadpool_redis::Pool);
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for BasicAuth {

@@ -9,6 +9,8 @@ use crate::schema::users_roles;
 use crate::users::credentials::Credentials;
 use crate::users::role::{NewUserRole, Role};
 use chrono::Local;
+use rocket_sync_db_pools::ConnectionPool;
+use crate::DbConn;
 
 pub struct UserRepository {
     conn: Pool<ConnectionManager<PgConnection>>,
@@ -72,8 +74,10 @@ impl UserRepository {
                         .filter(users::id.eq(id.clone()))
                         .set(users::deleted_at.eq(deletion_time.clone()))
                         .execute(trc);
-                    let _ = diesel::update(users_roles::table).filter(users_roles::user_id.eq(id.clone())).set(users_roles::deleted_at.eq(deletion_time.clone())).execute(trc);;
-                    let _ = diesel::update(credentials::table).filter(credentials::user_id.eq(id)).set(credentials::deleted_at.eq(deletion_time.clone())).execute(trc);;
+                    let _ = diesel::update(users_roles::table).filter(users_roles::user_id.eq(id.clone())).set(users_roles::deleted_at.eq(deletion_time.clone())).execute(trc);
+                    ;
+                    let _ = diesel::update(credentials::table).filter(credentials::user_id.eq(id)).set(credentials::deleted_at.eq(deletion_time.clone())).execute(trc);
+                    ;
                     user
                 })
             }
@@ -126,6 +130,32 @@ impl RoleRepository {
                 panic!("HAndle this");
             }
         }
+    }
+}
+
+pub struct CredentialsRepository {
+    conn: ConnectionPool<DbConn, PgConnection>,
+}
+
+impl CredentialsRepository {
+    pub fn new(conn: ConnectionPool<DbConn, PgConnection>) -> CredentialsRepository {
+        CredentialsRepository {
+            conn
+        }
+    }
+
+    pub async fn get_credentials_by_email(&self, email: String) -> QueryResult<Credentials> {
+        match self.conn.get().await {
+            None => {
+                panic!("HAndle this");
+            }
+            Some(c) => {
+                c.run(|ins| {
+                    return credentials::table.filter(credentials::email.eq(email)).get_result(ins);
+                }).await
+            }
+        }
+
     }
 }
 

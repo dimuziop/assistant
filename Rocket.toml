@@ -1,5 +1,6 @@
 [global.databases]
 postgres = { url = "postgres://postgres:postgres@localhost/assistant" }
+redis = { url = "redis://redis:6379" }
 
 
 [development]

@@ -6,6 +6,10 @@ extern crate assistant;
 use rocket::serde::json::{json, Value};
 use rocket::{Build, Rocket};
 use rocket::fairing::AdHoc;
+use rocket_db_pools::Database;
+use assistant::authorization::authorization_service::AuthorizationService;
+use assistant::{CacheConn, DbConn};
+use assistant::users::repositories::{CredentialsRepository};
 
 #[catch(404)]
 fn not_found() -> Value {
@@ -38,12 +42,25 @@ async fn run_db_migrations(rocket: Rocket<Build>) -> Rocket<Build> {
     rocket
 }
 
+async fn authorization_service_provider(rocket: Rocket<Build>) -> Rocket<Build> {
+    let pool = assistant::DbConn::pool(&rocket).expect("Unable to retrieve connections");
+
+    let credentials_repository = CredentialsRepository::new(pool.clone());
+    let authorization_service = AuthorizationService::new(
+        credentials_repository,
+    );
+    rocket.manage(authorization_service)
+}
+
 #[rocket::main]
 async fn main() {
     let _ = rocket::build()
         .mount("/tasks", assistant::tasks::tasks_controller::routes())
-        .attach(assistant::DbConn::fairing())
+        .mount("/auth", assistant::authorization::authorization_controller::routes())
+        .attach(DbConn::fairing())
+        .attach(CacheConn::init())
         .attach(AdHoc::on_ignite("Diesel migrations", run_db_migrations))
+        .attach(AdHoc::on_ignite("Up auth provider", authorization_service_provider))
         .register("/", catchers![not_found,unauthorized, unprocessable_entity])
         .launch()
         .await;
